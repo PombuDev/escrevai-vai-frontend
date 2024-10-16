@@ -18,7 +18,7 @@
         <!-- Exibe o ID da sala -->
         <div class="room-id">
           <h2>ID do Jogo:</h2>
-          <p class="id">{{ roomId }}</p>
+          <p class="id">{{ roomId }}</p> <!-- Verificando se roomId está sendo passado -->
         </div>
       </div>
 
@@ -53,10 +53,14 @@ export default {
       playersCount: this.players.length, // Conta os jogadores
     };
   },
+  created() {
+    console.log("ID da sala:", this.roomId); // Verifica se roomId está sendo passado
+    console.log("Jogadores:", this.players); // Verifica se os jogadores estão sendo passados
+  },
   methods: {
     startGame() {
-      // Aqui navega para a tela de escolha de gênero (só para o criador da sala)
-      this.$emit("start-game", this.roomId); // Emite evento para o componente pai
+      // Emite um evento para o componente pai (App.vue) informando que o jogo foi iniciado
+      this.$emit("navigateToGenreSelection");
     },
     shareRoom() {
       // Copia o ID da sala para a área de transferência

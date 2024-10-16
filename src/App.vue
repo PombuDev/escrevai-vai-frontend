@@ -1,63 +1,100 @@
 <template>
-  <div v-if="!roomCreated" class="background">
-    <div class="container">
-      <header>
-        <h1 class="title">EscrevAI, vai!</h1>
-      </header>
-      
-      <div class="content">
-        <!-- Seção da foto e apelido -->
-        <div class="profile">
-          <div class="avatar-container">
-            <img src="@/assets/avatar.png" alt="Avatar do usuário" class="avatar">
-            <span class="nickname-label">Apelido</span>
+  <div>
+    <!-- Primeira tela (Criação ou entrada em sala) -->
+    <div v-if="!roomCreated && !genreSelectionVisible && !lyricsWritingVisible && !resultsVisible" class="background">
+      <div class="container">
+        <header>
+          <h1 class="title">EscrevAI, vai!</h1>
+        </header>
+
+        <div class="content">
+          <div class="profile">
+            <div class="avatar-container">
+              <img src="@/assets/avatar.png" alt="Avatar do usuário" class="avatar">
+              <span class="nickname-label">Apelido</span>
+            </div>
+            <input type="text" v-model="nickname" placeholder="Digite seu apelido" class="nickname-input" />
           </div>
-          <input type="text" v-model="nickname" placeholder="Digite seu apelido" class="nickname-input" />
+
+          <div class="rules-container">
+            <h2>Como jogar?</h2>
+            <ul>
+              <li v-for="(rule, index) in rules" :key="index">{{ rule }}</li>
+            </ul>
+            <input type="text" v-model="newRule" placeholder="Adicionar nova regra" class="rule-input" />
+            <button @click="addRule" class="add-rule-btn">Adicionar Regra</button>
+          </div>
         </div>
 
-        <!-- Seção das regras -->
-        <div class="rules-container">
-          <h2>Como jogar?</h2>
-          <ul>
-            <li v-for="(rule, index) in rules" :key="index">{{ rule }}</li>
-          </ul>
-          <input type="text" v-model="newRule" placeholder="Adicionar nova regra" class="rule-input" />
-          <button @click="addRule" class="add-rule-btn">Adicionar Regra</button>
-        </div>
-      </div>
-
-      <!-- Botões para criar ou entrar em uma sala -->
-      <div class="actions">
-        <button @click="createRoom" class="create-room">Criar Sala</button>
-        <div class="join-room">
-          <input type="text" v-model="roomCode" placeholder="Código da sala" class="join-room-input" />
-          <button @click="joinRoom">Entrar na sala</button>
+        <div class="actions">
+          <button @click="createRoom" class="create-room">Criar Sala</button>
+          <div class="join-room">
+            <input type="text" v-model="roomCode" placeholder="Código da sala" class="join-room-input" />
+            <button @click="joinRoom">Entrar na sala</button>
+          </div>
         </div>
       </div>
     </div>
-  </div>
 
-  <!-- Tela RoomView após a criação ou entrada na sala -->
-  <RoomView v-if="roomCreated" :nickname="nickname" :isCreator="isCreator" :roomId="generatedRoomId" :players="players" />
+    <RoomView 
+      v-if="roomCreated && !genreSelectionVisible && !lyricsWritingVisible && !resultsVisible" 
+      :nickname="nickname" 
+      :isCreator="isCreator" 
+      :roomId="generatedRoomId" 
+      :players="players" 
+      @navigateToGenreSelection="showGenreSelection"
+    />
+
+    <GenreSelection 
+      v-if="genreSelectionVisible && !lyricsWritingVisible && !resultsVisible" 
+      @genre-chosen="handleGenreChosen"
+    />
+
+    <LyricWritingView 
+      v-if="lyricsWritingVisible && !resultsVisible" 
+      :players="players" 
+      :nickname="nickname" 
+      :isCreator="isCreator"
+      @finish-song="finishSong" 
+    />
+
+    <!-- Tela ResultsSound após a escrita da letra -->
+    <ResultsSound 
+      v-if="resultsVisible" 
+      :players="players" 
+      :completedLyrics="completedLyrics" 
+      @restart-game="restartGame"
+    />
+  </div>
 </template>
 
 <script>
-import RoomView from './components/RoomView.vue'; // Importando RoomView
+import RoomView from './components/RoomView.vue'; 
+import GenreSelection from './components/GenreSelection.vue'; 
+import LyricWritingView from './components/LyricWritingView.vue'; 
+import ResultsSound from './components/ResultsSound.vue'; // Importando ResultsSound
 
 export default {
   components: {
-    RoomView
+    RoomView,
+    GenreSelection,
+    LyricWritingView,
+    ResultsSound // Registrando o componente
   },
   data() {
     return {
       nickname: '',
       newRule: '',
-      rules: ['Escreva um verso por vez', 'Escolha um ritmo', 'Divirta-se!'], // Regras padrão
+      rules: ['Escreva um verso por vez', 'Escolha um ritmo', 'Divirta-se!'], 
       roomCode: '',
-      roomCreated: false, // Controle para mostrar a tela RoomView
-      isCreator: false, // Verifica se o usuário criou a sala
-      generatedRoomId: '', // ID gerado automaticamente para a sala
-      players: [] // Lista de jogadores
+      roomCreated: false, 
+      isCreator: false, 
+      generatedRoomId: '', 
+      players: [], 
+      genreSelectionVisible: false, 
+      lyricsWritingVisible: false,
+      resultsVisible: false, 
+      completedLyrics: [] 
     };
   },
   methods: {
@@ -65,8 +102,8 @@ export default {
       if (this.nickname) {
         this.isCreator = true;
         this.generatedRoomId = Math.random().toString(36).substr(2, 8).toUpperCase();
-        this.players.push({ nickname: this.nickname, isCreator: true }); // Adiciona o criador à lista de jogadores
-        this.roomCreated = true; // Navega para a RoomView após criar a sala
+        this.players.push({ nickname: this.nickname, isCreator: true });
+        this.roomCreated = true; 
       } else {
         alert('Por favor, insira seu apelido para criar uma sala.');
       }
@@ -74,7 +111,8 @@ export default {
     joinRoom() {
       if (this.nickname && this.roomCode) {
         this.isCreator = false;
-        this.players.push({ nickname: this.nickname, isCreator: false }); 
+        this.generatedRoomId = this.roomCode;
+        this.players.push({ nickname: this.nickname, isCreator: false });
         this.roomCreated = true; 
       } else {
         alert('Por favor, insira seu apelido e o código da sala.');
@@ -85,6 +123,34 @@ export default {
         this.rules.push(this.newRule);
         this.newRule = ''; 
       }
+    },
+    showGenreSelection() {
+      this.genreSelectionVisible = true;
+    },
+    handleGenreChosen(chosenGenre) {
+      this.genreSelectionVisible = false;
+      this.lyricsWritingVisible = true;
+      console.log('Gênero escolhido:', chosenGenre);
+    },
+    finishSong(lyricsList) {
+      console.log('Letra completa:', lyricsList);
+      this.completedLyrics = lyricsList; 
+      this.lyricsWritingVisible = false; 
+      this.resultsVisible = true; 
+    },
+    restartGame() {
+      this.nickname = '';
+      this.newRule = '';
+      this.rules = ['Escreva um verso por vez', 'Escolha um ritmo', 'Divirta-se!'];
+      this.roomCode = '';
+      this.roomCreated = false;
+      this.isCreator = false;
+      this.generatedRoomId = '';
+      this.players = [];
+      this.genreSelectionVisible = false;
+      this.lyricsWritingVisible = false;
+      this.resultsVisible = false; 
+      this.completedLyrics = []; 
     }
   }
 };
@@ -184,55 +250,69 @@ export default {
 }
 
 .add-rule-btn {
-  background-color: #5e2c51;
-  color: white;
-  padding: 10px;
   margin-top: 10px;
-  width: 100%;
+  padding: 8px 15px;
+  background-color: #c64d8a;
+  color: white;
   border: none;
   border-radius: 5px;
   cursor: pointer;
-  transition: background-color 0.3s ease;
-}
-
-.add-rule-btn:hover {
-  background-color: #7e3a73;
 }
 
 .actions {
-  display: flex;
-  justify-content: space-between;
-  flex-wrap: wrap;
   margin-top: 20px;
-  gap: 20px;
 }
 
 .create-room, .join-room button {
-  background-color: #5e2c51;
+  padding: 10px 15px;
+  margin-top: 10px;
+  background-color: #c64d8a;
   color: white;
-  padding: 12px;
   border: none;
   border-radius: 5px;
   cursor: pointer;
-  transition: background-color 0.3s ease;
-}
-
-.create-room:hover, .join-room button:hover {
-  background-color: #7e3a73;
 }
 
 .join-room {
   display: flex;
-  flex-direction: row;
-  justify-content: flex-end;
   align-items: center;
+  justify-content: center;
 }
 
 .join-room-input {
-  width: 100px;
-  padding: 8px;
-  border-radius: 5px;
+  padding: 10px;
   border: 1px solid #ddd;
+  border-radius: 5px;
   margin-right: 10px;
+}
+
+.results-container {
+  text-align: center;
+  background-color: #673ab7;
+  padding: 20px;
+  border-radius: 10px;
+  color: white;
+}
+
+.album-cover {
+  width: 200px; 
+  height: auto; 
+  margin-bottom: 20px; 
+}
+
+.lyrics {
+  background-color: #673ab7;
+  color: #000;
+  padding: 15px;
+  border-radius: 10px;
+  margin: 20px 0;
+}
+
+.lyric-item {
+  margin: 5px 0;
+}
+
+.lyric-item p {
+  margin: 0; 
 }
 </style>
